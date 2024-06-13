@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Oxide.Plugins
 {
     [Info("Forever Ripe", "VisEntities", "1.0.0")]
-    [Description("Stops plants from dying by keeping them always ripe.")]
+    [Description("Stops plants from dying by keeping them in a ripe state all the time.")]
     public class ForeverRipe : RustPlugin
     {
         #region Fields
