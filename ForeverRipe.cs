@@ -1,9 +1,15 @@
-﻿using Newtonsoft.Json;
+﻿/*
+ * Copyright (C) 2024 Game4Freak.io
+ * This mod is provided under the Game4Freak EULA.
+ * Full legal terms can be found at https://game4freak.io/eula/
+ */
+
+using Newtonsoft.Json;
 using System.Collections.Generic;
 
 namespace Oxide.Plugins
 {
-    [Info("Forever Ripe", "VisEntities", "1.0.0")]
+    [Info("Forever Ripe", "VisEntities", "1.1.0")]
     [Description("Stops plants from dying by keeping them in a ripe state all the time.")]
     public class ForeverRipe : RustPlugin
     {
@@ -81,6 +87,7 @@ namespace Oxide.Plugins
         private void Init()
         {
             _plugin = this;
+            PermissionUtil.RegisterPermissions();
         }
 
         private void Unload()
@@ -89,17 +96,60 @@ namespace Oxide.Plugins
             _plugin = null;
         }
 
-        private void OnGrowableStateChange(GrowableEntity growableEntity, PlantProperties.State state)
+        private object OnGrowableStateChange(GrowableEntity growableEntity, PlantProperties.State state)
         {
-            if (growableEntity != null && growableEntity.planter != null && state == PlantProperties.State.Dying)
+            if (growableEntity != null && growableEntity.planter != null && state == PlantProperties.State.Dying && growableEntity.harvests < growableEntity.Properties.maxHarvests)
             {
                 if (_config.PlantShortPrefabNames.Contains(growableEntity.ShortPrefabName))
                 {
-                    growableEntity.ChangeState(PlantProperties.State.Ripe, resetAge: true);
+                    BasePlayer owner = FindById(growableEntity.OwnerID);
+                    if (owner != null && PermissionUtil.HasPermission(owner, PermissionUtil.USE))
+                    {
+                        growableEntity.ChangeState(PlantProperties.State.Ripe, resetAge: false);
+                        growableEntity.InitializeHealth(1000f, 1000f);
+                        return true;
+                    }
                 }
             }
+
+            return null;
         }
 
         #endregion Oxide Hooks
+
+        #region Permissions
+
+        public static class PermissionUtil
+        {
+            public const string USE = "foreverripe.use";
+            private static readonly List<string> _permissions = new List<string>
+            {
+                USE
+            };
+
+            public static void RegisterPermissions()
+            {
+                foreach (var permission in _permissions)
+                {
+                    _plugin.permission.RegisterPermission(permission, _plugin);
+                }
+            }
+
+            public static bool HasPermission(BasePlayer player, string permissionName)
+            {
+                return _plugin.permission.UserHasPermission(player.UserIDString, permissionName);
+            }
+        }
+
+        #endregion Permissions
+
+        #region Helper Functions
+
+        public static BasePlayer FindById(ulong playerId)
+        {
+            return RelationshipManager.FindByID(playerId);
+        }
+
+        #endregion Helper Functions
     }
 }
