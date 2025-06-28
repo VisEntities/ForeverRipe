@@ -9,7 +9,7 @@ using System.Collections.Generic;
 
 namespace Oxide.Plugins
 {
-    [Info("Forever Ripe", "VisEntities", "1.1.0")]
+    [Info("Forever Ripe", "VisEntities", "1.2.0")]
     [Description("Stops plants from dying by keeping them in a ripe state all the time.")]
     public class ForeverRipe : RustPlugin
     {
@@ -27,8 +27,8 @@ namespace Oxide.Plugins
             [JsonProperty("Version")]
             public string Version { get; set; }
 
-            [JsonProperty("Plant Short Prefab Names")]
-            public List<string> PlantShortPrefabNames { get; set; }
+            [JsonProperty("Whitelisted Growables (leave empty to apply to all)")]
+            public List<string> WhitelistedGrowables { get; set; }
         }
 
         protected override void LoadConfig()
@@ -61,6 +61,9 @@ namespace Oxide.Plugins
             if (string.Compare(_config.Version, "1.0.0") < 0)
                 _config = defaultConfig;
 
+            if (string.Compare(_config.Version, "1.2.0") < 0)
+                _config.WhitelistedGrowables = defaultConfig.WhitelistedGrowables;
+
             PrintWarning("Config update complete! Updated from version " + _config.Version + " to " + Version.ToString());
             _config.Version = Version.ToString();
         }
@@ -70,13 +73,7 @@ namespace Oxide.Plugins
             return new Configuration
             {
                 Version = Version.ToString(),
-                PlantShortPrefabNames = new List<string>
-                {
-                    "corn.entity",
-                    "hemp.entity",
-                    "pumpkin.entity",
-                    "potato.entity"
-                }
+                WhitelistedGrowables = new List<string>()
             };
         }
 
@@ -96,23 +93,22 @@ namespace Oxide.Plugins
             _plugin = null;
         }
 
-        private object OnGrowableStateChange(GrowableEntity growableEntity, PlantProperties.State state)
+        private object OnGrowableStateChange(GrowableEntity growable, PlantProperties.State state)
         {
-            if (growableEntity != null && growableEntity.planter != null && state == PlantProperties.State.Dying && growableEntity.harvests < growableEntity.Properties.maxHarvests)
-            {
-                if (_config.PlantShortPrefabNames.Contains(growableEntity.ShortPrefabName))
-                {
-                    BasePlayer owner = FindById(growableEntity.OwnerID);
-                    if (owner != null && PermissionUtil.HasPermission(owner, PermissionUtil.USE))
-                    {
-                        growableEntity.ChangeState(PlantProperties.State.Ripe, resetAge: false);
-                        growableEntity.InitializeHealth(1000f, 1000f);
-                        return true;
-                    }
-                }
-            }
+            if (growable == null || growable.planter == null || state != PlantProperties.State.Dying || growable.harvests >= growable.Properties.maxHarvests)
+                return null;
 
-            return null;
+            bool allowAll = _config.WhitelistedGrowables == null || _config.WhitelistedGrowables.Count == 0;
+            if (!allowAll && !_config.WhitelistedGrowables.Contains(growable.ShortPrefabName))
+                return null;
+
+            BasePlayer owner = FindPlayerById(growable.OwnerID);
+            if (owner == null || !PermissionUtil.HasPermission(owner, PermissionUtil.USE))
+                return null;
+
+            growable.ChangeState(PlantProperties.State.Ripe, resetAge: false);
+            growable.InitializeHealth(1000f, 1000f);
+            return true;
         }
 
         #endregion Oxide Hooks
@@ -145,7 +141,7 @@ namespace Oxide.Plugins
 
         #region Helper Functions
 
-        public static BasePlayer FindById(ulong playerId)
+        public static BasePlayer FindPlayerById(ulong playerId)
         {
             return RelationshipManager.FindByID(playerId);
         }
