@@ -9,7 +9,7 @@ using System.Collections.Generic;
 
 namespace Oxide.Plugins
 {
-    [Info("Forever Ripe", "VisEntities", "1.2.0")]
+    [Info("Forever Ripe", "VisEntities", "1.2.1")]
     [Description("Stops plants from dying by keeping them in a ripe state all the time.")]
     public class ForeverRipe : RustPlugin
     {
@@ -107,6 +107,7 @@ namespace Oxide.Plugins
                 return null;
 
             growable.ChangeState(PlantProperties.State.Ripe, resetAge: false);
+            growable.stageAge = 0f;
             growable.InitializeHealth(1000f, 1000f);
             return true;
         }
